@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/analysis_result.dart';
 
-/// 结果展示页：文字转写（真实 ASR）+ BPM + 调性（占位）+ 耗时/模型信息
+/// 结果展示页。
+///
+/// 两种模式：
+/// - 歌词模式：展示纯文本歌词全文（可滚动），不展示歌曲名/歌手，无时间轴高亮
+/// - ASR 转写模式（识曲失败回退）：展示本地语音转写文字
 class ResultPage extends StatelessWidget {
   final AnalysisResult result;
 
@@ -14,182 +19,206 @@ class ResultPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('分析结果'),
+        title: Text(result.isLyrics ? '歌词结果' : '转写结果'),
         centerTitle: true,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // 指标卡片：BPM / 调性（占位）
-          Row(
-            children: [
-              Expanded(
-                child: _MetricCard(
-                  icon: Icons.speed_rounded,
-                  label: 'BPM',
-                  value: result.bpm > 0 ? '${result.bpm}' : '待分析',
-                  color: colorScheme.primary,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _MetricCard(
-                  icon: Icons.music_note_rounded,
-                  label: '调性',
-                  value: result.key,
-                  color: colorScheme.tertiary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // 转写文字卡片
-          Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.subject_rounded, color: colorScheme.primary),
-                      const SizedBox(width: 8),
-                      Text(
-                        '文字转写',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  SelectableText(
-                    result.transcript,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          height: 1.6,
-                        ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // 转写信息卡片
-          Card(
-            elevation: 1,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.info_outline_rounded,
-                          color: colorScheme.onSurfaceVariant),
-                      const SizedBox(width: 8),
-                      Text(
-                        '转写信息',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _InfoRow(label: 'ASR 模型', value: result.modelName),
-                  const SizedBox(height: 6),
-                  _InfoRow(label: '转写耗时', value: '${(result.elapsedMs / 1000).toStringAsFixed(2)} 秒'),
-                  const SizedBox(height: 6),
-                  _InfoRow(label: '模型加载', value: '${(result.loadMs / 1000).toStringAsFixed(2)} 秒'),
-                  const SizedBox(height: 6),
-                  _InfoRow(label: '音频时长', value: '${result.audioDurationSec.toStringAsFixed(1)} 秒'),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // 源文件信息
-          Card(
-            elevation: 1,
-            child: ListTile(
-              leading: const Icon(Icons.insert_drive_file_outlined),
-              title: const Text('源文件'),
-              subtitle: Text(
-                result.filePath,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // 导出占位按钮（后续接入导出能力）
-          OutlinedButton.icon(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('导出功能开发中，敬请期待')),
-              );
-            },
-            icon: const Icon(Icons.ios_share_rounded),
-            label: const Text('导出分析报告'),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'BPM / 调性待接入分析引擎',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colorScheme.outline,
-                ),
-          ),
-        ],
-      ),
+      body: result.isLyrics
+          ? _buildLyrics(context, colorScheme)
+          : _buildAsr(context, colorScheme),
     );
   }
-}
 
-/// 指标卡片组件
-class _MetricCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-
-  const _MetricCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      color: color.withValues(alpha: 0.08),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+  /// 歌词模式：纯文本歌词全文，可滚动复制，不展示歌曲信息
+  Widget _buildLyrics(BuildContext context, ColorScheme colorScheme) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // 歌词全文卡片
+        Card(
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.lyrics_rounded, color: colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      '歌词全文',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SelectableText(
+                  result.lyrics,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        height: 1.7,
+                      ),
+                ),
+              ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-            ),
-          ],
+          ),
         ),
-      ),
+        const SizedBox(height: 16),
+        // 处理信息（不展示歌曲名/歌手）
+        Card(
+          elevation: 1,
+          child: ListTile(
+            leading: const Icon(Icons.auto_awesome_outlined),
+            title: const Text('已识别歌词'),
+            subtitle: Text(
+              '耗时 ${(result.elapsedMs / 1000).toStringAsFixed(2)} 秒',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // 源文件信息
+        Card(
+          elevation: 1,
+          child: ListTile(
+            leading: const Icon(Icons.insert_drive_file_outlined),
+            title: const Text('源文件'),
+            subtitle: Text(
+              result.filePath,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // 复制按钮
+        OutlinedButton.icon(
+          onPressed: () async {
+            await _copyToClipboard(context, result.lyrics);
+          },
+          icon: const Icon(Icons.copy_rounded),
+          label: const Text('复制歌词'),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '歌词为纯文本内容，不含时间轴',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colorScheme.outline,
+              ),
+        ),
+      ],
     );
+  }
+
+  /// ASR 转写模式（识曲失败回退）
+  Widget _buildAsr(BuildContext context, ColorScheme colorScheme) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // 转写文字卡片
+        Card(
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.subject_rounded, color: colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      '语音转写（ASR 回退）',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SelectableText(
+                  result.transcript,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        height: 1.6,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // 转写信息卡片
+        Card(
+          elevation: 1,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded,
+                        color: colorScheme.onSurfaceVariant),
+                    const SizedBox(width: 8),
+                    Text(
+                      '转写信息',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _InfoRow(label: 'ASR 模型', value: result.modelName),
+                const SizedBox(height: 6),
+                _InfoRow(
+                  label: '转写耗时',
+                  value: '${(result.elapsedMs / 1000).toStringAsFixed(2)} 秒',
+                ),
+                const SizedBox(height: 6),
+                _InfoRow(
+                  label: '音频时长',
+                  value: '${result.audioDurationSec.toStringAsFixed(1)} 秒',
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // 源文件信息
+        Card(
+          elevation: 1,
+          child: ListTile(
+            leading: const Icon(Icons.insert_drive_file_outlined),
+            title: const Text('源文件'),
+            subtitle: Text(
+              result.filePath,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        OutlinedButton.icon(
+          onPressed: () async {
+            await _copyToClipboard(context, result.transcript);
+          },
+          icon: const Icon(Icons.copy_rounded),
+          label: const Text('复制转写文本'),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _copyToClipboard(BuildContext context, String text) async {
+    await Clipboard.setData(ClipboardData(text: text));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已复制到剪贴板')),
+      );
+    }
   }
 }
 

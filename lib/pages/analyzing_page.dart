@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../models/analysis_result.dart';
 import '../services/asr_service.dart';
+import '../services/audio_decoder.dart';
+import '../services/lyrics_recognizer.dart';
 import 'result_page.dart';
 
-/// 分析中状态页：真实调用本地 ASR 转写，展示进度与部分结果
+/// 分析中状态页：
+/// 主流程 = 识曲 + 拉取纯文本歌词；
+/// 失败时可回退到本地 ASR 转写（保留原功能）。
 class AnalyzingPage extends StatefulWidget {
   /// 被分析的音频文件路径
   final String filePath;
@@ -16,29 +20,61 @@ class AnalyzingPage extends StatefulWidget {
 }
 
 class _AnalyzingPageState extends State<AnalyzingPage> {
-  int _percent = 0;
-  String _partialText = '';
-  String? _error;
+  /// 当前阶段：解码 / 识曲 / 拉歌词 / 回退ASR
+  String _stage = '正在解码音频…';
+  String? _lyricsError;
 
   @override
   void initState() {
     super.initState();
-    _run();
+    _runLyrics();
   }
 
-  Future<void> _run() async {
+  /// 主流程：解码 -> 识曲 -> 拉取纯歌词
+  Future<void> _runLyrics() async {
     try {
-      final asr = await AsrService.instance.transcribeFile(
-        widget.filePath,
-        onProgress: (percent, text) {
-          if (mounted) {
-            setState(() {
-              _percent = percent;
-              _partialText = text;
-            });
-          }
-        },
+      setState(() => _stage = '正在解码音频…');
+      final wavPath = await AudioDecoder.decodeToWav(widget.filePath);
+
+      setState(() => _stage = '正在识别歌曲并匹配歌词…');
+      final outcome =
+          await LyricsRecognizer.instance.recognizeAndFetchLyrics(wavPath);
+
+      if (!mounted) return;
+      if (!outcome.matched || outcome.lyrics == null) {
+        setState(() {
+          _lyricsError = outcome.error ??
+              (outcome.matched ? '未找到该歌曲的歌词' : '未能识别出该音频对应的歌曲');
+        });
+        return;
+      }
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => ResultPage(
+            result: AnalysisResult.fromLyrics(
+              filePath: widget.filePath,
+              lyrics: outcome.lyrics!,
+              elapsedMs: outcome.elapsedMs,
+              audioDurationSec: 0,
+              lyricsSource: outcome.source,
+            ),
+          ),
+        ),
       );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _lyricsError = e.toString());
+    }
+  }
+
+  /// 回退：本地 ASR 转写（原功能）
+  Future<void> _fallbackAsr() async {
+    setState(() {
+      _lyricsError = null;
+      _stage = '正在本地离线转写…';
+    });
+    try {
+      final asr = await AsrService.instance.transcribeFile(widget.filePath);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -49,7 +85,7 @@ class _AnalyzingPageState extends State<AnalyzingPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      setState(() => _lyricsError = 'ASR 转写失败：$e');
     }
   }
 
@@ -59,11 +95,11 @@ class _AnalyzingPageState extends State<AnalyzingPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('正在分析'),
+        title: const Text('正在识别歌词'),
         centerTitle: true,
         automaticallyImplyLeading: false,
       ),
-      body: _error != null
+      body: _lyricsError != null
           ? _buildError(colorScheme)
           : _buildProgress(colorScheme),
     );
@@ -75,7 +111,7 @@ class _AnalyzingPageState extends State<AnalyzingPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 24),
+          const SizedBox(height: 40),
           const Center(
             child: SizedBox(
               width: 56,
@@ -85,59 +121,19 @@ class _AnalyzingPageState extends State<AnalyzingPage> {
           ),
           const SizedBox(height: 24),
           Text(
-            '正在本地离线转写…',
+            _stage,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
           Text(
-            'sherpa-onnx 流式中文模型 · 数据不离开设备',
+            '音频指纹识曲 · 在线匹配歌词 · ASR 兜底',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
           ),
-          const SizedBox(height: 24),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: _percent / 100,
-              minHeight: 8,
-              backgroundColor: colorScheme.surfaceContainerHighest,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '进度 $_percent%',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 24),
-          // 已识别的部分文字
-          Expanded(
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: _partialText.isEmpty
-                  ? Text(
-                      '正在聆听音频内容…',
-                      style: TextStyle(color: colorScheme.outline),
-                    )
-                  : SingleChildScrollView(
-                      child: Text(
-                        _partialText,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              height: 1.6,
-                            ),
-                      ),
-                    ),
-            ),
-          ),
-          const SizedBox(height: 8),
+          const Spacer(),
           Text(
             widget.filePath,
             textAlign: TextAlign.center,
@@ -159,21 +155,33 @@ class _AnalyzingPageState extends State<AnalyzingPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline_rounded, size: 64, color: colorScheme.error),
+            Icon(Icons.music_off_rounded, size: 64, color: colorScheme.error),
             const SizedBox(height: 16),
             Text(
-              '转写失败',
+              '歌词识别失败',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
             Text(
-              _error ?? '',
+              _lyricsError ?? '',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
             ),
             const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: _fallbackAsr,
+              icon: const Icon(Icons.transcribe_rounded),
+              label: const Text('回退到语音转写'),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             FilledButton.tonal(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('返回重试'),

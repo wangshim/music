@@ -94,13 +94,13 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             Text(
-              '导入音频，开始分析',
+              '导入音频，识别纯歌词',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
             Text(
-              '本地转写文字 · BPM · 调性',
+              '识曲匹配歌词 · 失败自动回退语音转写',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: colorScheme.onSurfaceVariant,
@@ -145,15 +145,15 @@ class _HomePageState extends State<HomePage> {
             // 开始分析按钮
             FilledButton.tonalIcon(
               onPressed: _hasFile ? _startAnalyze : null,
-              icon: const Icon(Icons.analytics_rounded),
-              label: const Text('开始分析'),
+              icon: const Icon(Icons.lyrics_rounded),
+              label: const Text('开始识别歌词'),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
             ),
             const Spacer(),
             Text(
-              'MVP 骨架：分析结果当前为占位数据',
+              '识曲+歌词已实现；ASR 转写作为失败兜底保留',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: colorScheme.outline,

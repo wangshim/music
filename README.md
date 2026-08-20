@@ -1,8 +1,19 @@
+---
+AIGC:
+    Label: "1"
+    ContentProducer: 001191440300708461136T1XGW3
+    ProduceID: 5c96509d255f4e87c60df81df97919d9_9c00b0059c6e11f1b930525400e6dd8f
+    ReservedCode1: z7jrq2atgiT398lxMbzhswzblmY/eCMDnHErTxxzLMNK/Vp2w8TYsXUUtI9yANH3L/KUw3sttGkhOxRxfQV60xkSBhZ0M7D+5DosHtFWK2NuOpQiXFonYGEBrriyMedMEypsYQKXkn4N0KYa1HGrP53dJuHyG+gOTkTvK/5dNf0LRNHBDe7cZdTGbgA=
+    ContentPropagator: 001191440300708461136T1XGW3
+    PropagateID: 5c96509d255f4e87c60df81df97919d9_9c00b0059c6e11f1b930525400e6dd8f
+    ReservedCode2: z7jrq2atgiT398lxMbzhswzblmY/eCMDnHErTxxzLMNK/Vp2w8TYsXUUtI9yANH3L/KUw3sttGkhOxRxfQV60xkSBhZ0M7D+5DosHtFWK2NuOpQiXFonYGEBrriyMedMEypsYQKXkn4N0KYa1HGrP53dJuHyG+gOTkTvK/5dNf0LRNHBDe7cZdTGbgA=
+---
+
 # 音频分析助手（Audio Analyzer App）
 
-Flutter 跨平台（Android / iOS）本地音频分析应用，支持**离线中文语音转写（ASR）**与**音频分析结果展示**（BPM / 调性为占位，待接入真实分析引擎）。
+Flutter 跨平台（Android / iOS）本地音频工具，支持**导入音频直接识别纯文本歌词**（识曲 + 在线歌词匹配，不展示歌曲信息），识曲失败时自动回退**离线中文语音转写（ASR）**。
 
-> 项目定位：本地自用工具，优先保证"选音频 → 分析 → 看结果"链路简单可用；非技术人员可直接安装 APK 使用。
+> 项目定位：本地自用工具，优先保证"选音频 → 识别歌词 → 复制/查看"链路简单可用；非技术人员可直接安装 APK 使用。
 
 ## 文档导航
 
@@ -30,3 +41,4 @@ adb install -r build\app\outputs\flutter-apk\app-arm64-v8a-release.apk
 ```
 
 > 模型文件已随仓库分发（约 24MB，见 docs/03），克隆后无需额外下载即可构建。
+*（内容由AI生成，仅供参考）*
