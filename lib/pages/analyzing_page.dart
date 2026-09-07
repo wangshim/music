@@ -91,98 +91,164 @@ class _AnalyzingPageState extends State<AnalyzingPage> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('正在识别歌词'),
-        centerTitle: true,
         automaticallyImplyLeading: false,
       ),
       body: _lyricsError != null
-          ? _buildError(colorScheme)
-          : _buildProgress(colorScheme),
+          ? _buildError(scheme, textTheme)
+          : _buildProgress(scheme, textTheme),
     );
   }
 
-  Widget _buildProgress(ColorScheme colorScheme) {
+  Widget _buildProgress(ColorScheme scheme, TextTheme textTheme) {
+    final fileName = widget.filePath.split(RegExp(r'[/\\]')).last;
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 40),
-          const Center(
-            child: SizedBox(
-              width: 56,
-              height: 56,
-              child: CircularProgressIndicator(strokeWidth: 5),
+          const SizedBox(height: 48),
+          Center(
+            child: Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer.withValues(alpha: 0.5),
+                shape: BoxShape.circle,
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  const SizedBox(
+                    width: 52,
+                    height: 52,
+                    child: CircularProgressIndicator(strokeWidth: 4.5),
+                  ),
+                  Icon(
+                    Icons.graphic_eq_rounded,
+                    size: 30,
+                    color: scheme.primary,
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
           Text(
             _stage,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleLarge,
+            style: textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
-            '音频指纹识曲 · 在线匹配歌词 · ASR 兜底',
+            '正在为你识别歌词，请稍候…',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+            style: textTheme.bodyMedium?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
           ),
           const Spacer(),
-          Text(
-            widget.filePath,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colorScheme.outline,
+          if (fileName.isNotEmpty)
+            Center(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: scheme.outlineVariant.withValues(alpha: 0.5),
+                  ),
                 ),
-          ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.music_note_rounded,
+                        size: 16, color: scheme.onSurfaceVariant),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        fileName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildError(ColorScheme colorScheme) {
+  Widget _buildError(ColorScheme scheme, TextTheme textTheme) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(28),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Icon(Icons.music_off_rounded, size: 64, color: colorScheme.error),
-            const SizedBox(height: 16),
+            Center(
+              child: Container(
+                width: 84,
+                height: 84,
+                decoration: BoxDecoration(
+                  color: scheme.errorContainer.withValues(alpha: 0.6),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.music_off_rounded,
+                  size: 40,
+                  color: scheme.onErrorContainer,
+                ),
+              ),
+            ),
+            const SizedBox(height: 22),
             Text(
               '歌词识别失败',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _lyricsError ?? '',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: scheme.outlineVariant.withValues(alpha: 0.5),
+                ),
+              ),
+              child: Text(
+                _lyricsError ?? '',
+                textAlign: TextAlign.center,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: _fallbackAsr,
               icon: const Icon(Icons.transcribe_rounded),
               label: const Text('回退到语音转写'),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 14,
-                ),
-              ),
             ),
-            const SizedBox(height: 12),
-            FilledButton.tonal(
+            const SizedBox(height: 10),
+            OutlinedButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('返回重试'),
             ),
