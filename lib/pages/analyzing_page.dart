@@ -74,7 +74,14 @@ class _AnalyzingPageState extends State<AnalyzingPage> {
       _stage = '正在本地离线转写…';
     });
     try {
-      final asr = await AsrService.instance.transcribeFile(widget.filePath);
+      final asr = await AsrService.instance.transcribeFile(
+        widget.filePath,
+        onProgress: (percent, partialText) {
+          if (!mounted) return;
+          // 非流式识别没有中间文字，只刷新百分比，避免长时间无反馈
+          setState(() => _stage = '正在本地离线转写… $percent%');
+        },
+      );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(

@@ -55,13 +55,11 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 flutter:
 
-  # 离线中文 ASR 模型资源（sherpa-onnx zipformer 14M）
+  # 离线 ASR 模型资源（sherpa-onnx SenseVoice-Small int8，非流式）
   # 注意：显式列出每个模型文件，避免目录声明导致子目录文件未打包
   assets:
-    - assets/models/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/encoder-epoch-99-avg-1.int8.onnx
-    - assets/models/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/decoder-epoch-99-avg-1.int8.onnx
-    - assets/models/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/joiner-epoch-99-avg-1.int8.onnx
-    - assets/models/sherpa-onnx-streaming-zipformer-zh-14M-2023-02-23/tokens.txt
+    - assets/models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17/model.int8.onnx
+    - assets/models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17/tokens.txt
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

@@ -40,5 +40,5 @@ flutter build apk --release --split-per-abi
 adb install -r build\app\outputs\flutter-apk\app-arm64-v8a-release.apk
 ```
 
-> 模型文件已随仓库分发（约 24MB，见 docs/03），克隆后无需额外下载即可构建。
+> ASR 模型（SenseVoice-Small int8，约 228MB）超过 GitHub 单文件 100MB 限制，**未随仓库分发**，克隆后请按 [docs/03-模型说明.md](docs/03-模型说明.md) 下载放到 `assets/models/` 对应目录后再构建。
 *（内容由AI生成，仅供参考）*

@@ -54,3 +54,7 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# 模型资产：SenseVoice int8 模型约 228MB，超过 GitHub 单文件 100MB 限制，不入库。
+# 克隆后请按 docs/03-模型说明.md 下载并放到同路径，再执行构建。
+/assets/models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17/
